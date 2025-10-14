@@ -2,8 +2,8 @@ import { Request, Response } from "express";
 import fs from "fs";
 import csv from "csv-parser";
 import { PrismaClient } from "../../generated/prisma";
-import { aggregateCategoryMetrics, aggregateSummaryMetrics, getPreviousPeriod } from "../utils/eqrev";
-
+import { getCategoryMetrics, getSummaryMetrics, getPreviousPeriod } from "../utils/eqrev";
+import { CategoryMetric, DBCategoryMetric } from "../utils/types";
 const prisma = new PrismaClient();
 
 export const uploadCSV = async (req: Request, res: Response) => {
@@ -185,81 +185,64 @@ export const uploadCSV = async (req: Request, res: Response) => {
 export const dashboardMetric = async (req: Request, res: Response) => {
   try {
     const { start, end, limit, offset } = req.query;
+
+    if (!start || !end) {
+      return res.status(400).json({ success: false, message: "Start and end dates are required" });
+    }
+
     const startDate = new Date(start as string);
     const endDate = new Date(end as string);
     const pageLimit = limit ? parseInt(limit as string, 10) : 5;
     const pageOffset = offset ? parseInt(offset as string, 10) : 0;
 
-    // 1. Calculate previous period
-    const diffDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-    const prevEndDate = new Date(startDate);
-    prevEndDate.setDate(startDate.getDate() - 1);
-    const prevStartDate = new Date(prevEndDate);
-    prevStartDate.setDate(prevEndDate.getDate() - (diffDays - 1));
+    // 1️⃣ Previous period calculation
+    const { prevStartDate, prevEndDate } = getPreviousPeriod(startDate, endDate);
 
-    // 2. Fetch data for both periods
+    // 2️⃣ Aggregate using SQL
     const [currentData, previousData] = await Promise.all([
-      prisma.category.findMany({
-        include: {
-          products: {
-            include: {
-              facts: {
-                where: { date: { gte: startDate, lte: endDate } },
-              },
-            },
-          },
-        },
-      }),
-      prisma.category.findMany({
-        include: {
-          products: {
-            include: {
-              facts: {
-                where: { date: { gte: prevStartDate, lte: prevEndDate } },
-              },
-            },
-          },
-        },
-      }),
+      getCategoryMetrics(startDate, endDate),
+      getCategoryMetrics(prevStartDate, prevEndDate),
     ]);
 
-    // 3. Aggregate and compare
-    const result = currentData.map((category, idx) => {
-      const current = aggregateCategoryMetrics(category);
-      const prev = aggregateCategoryMetrics(previousData[idx]);
+    // 3️⃣ Compare current vs previous
+    const result: CategoryMetric[] = currentData.map((current: DBCategoryMetric) => {
+      const prev = previousData.find((p) => p.categoryId === current.categoryId);
 
       return {
-        category: category.name,
-        totalRevenue: current.totalRevenue,
-        totalRevenueDiff: current.totalRevenue - prev.totalRevenue,
-        totalOrders: current.totalOrders,
-        totalOrdersDiff: current.totalOrders - prev.totalOrders,
-        adSpends: current.adSpends,
-        adSpendsDiff: current.adSpends - prev.adSpends,
-        adRevenue: current.adRevenue,
-        adRevenueDiff: current.adRevenue - prev.adRevenue,
-        roas: current.roas,
-        roasDiff: current.roas - prev.roas,
-        aov: current.aov,
-        aovDiff: current.aov - prev.aov,
+        categoryId: current.categoryId,
+        category: current.categoryName,
+        subcategory: current.subcategoryName,
+        totalRevenue: Number(current.totalRevenue) || 0,
+        totalRevenueDiff: (Number(current.totalRevenue) || 0) - (Number(prev?.totalRevenue) || 0),
+        totalOrders: Number(current.totalOrders) || 0,
+        totalOrdersDiff: (Number(current.totalOrders) || 0) - (Number(prev?.totalOrders) || 0),
+        adSpends: Number(current.adSpends) || 0,
+        adSpendsDiff: (Number(current.adSpends) || 0) - (Number(prev?.adSpends) || 0),
+        adRevenue: Number(current.adRevenue) || 0,
+        adRevenueDiff: (Number(current.adRevenue) || 0) - (Number(prev?.adRevenue) || 0),
+        roas: Number(current.roas) || 0,
+        roasDiff: (Number(current.roas) || 0) - (Number(prev?.roas) || 0),
+        aov: Number(current.aov) || 0,
+        aovDiff: (Number(current.aov) || 0) - (Number(prev?.aov) || 0),
       };
     });
 
-    // 4. Summary row
-    const summary = aggregateSummaryMetrics(result);
+    // 4️⃣ Create summary row
+    const summary = getSummaryMetrics(currentData);
 
-    // 5. Pagination (excluding summary)
+    // 5️⃣ Pagination
     const paginated = result.slice(pageOffset, pageOffset + pageLimit);
     paginated.unshift(summary);
 
     return res.json({
+      success: true,
       limit: pageLimit,
       offset: pageOffset,
       total: result.length,
       data: paginated,
     });
   } catch (err) {
-    console.log("Error:", err);
-    return res.status(404).json({ success: false, message: "something went wrong" });
+    console.error("Error in dashboardMetric:", err);
+    return res.status(500).json({ success: false, message: "Something went wrong", error: err });
   }
 };
