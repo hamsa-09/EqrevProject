@@ -1,0 +1,84 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+model Brand {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  products    Product[]
+}
+
+model Category {
+  id               Int      @id @default(autoincrement())
+  name             String
+  subcategory_name String
+  products         Product[]
+  @@unique([name, subcategory_name])
+}
+
+model Client {
+  id        Int      @id @default(autoincrement())
+  client_id String   @unique
+  facts     FactTable[]
+}
+
+model Platform {
+  id       Int      @id @default(autoincrement())
+  name     String   @unique
+  facts    FactTable[]
+}
+
+model Product {
+  id                    Int      @id @default(autoincrement())
+  product_id            String   @unique
+  product_name          String
+  internal_product_id   String?
+  internal_product_name String?
+  product_type          String?
+  bundle_id             String?
+  product_image         String?
+  maximum_retail_price  Float?
+  discounted_selling_price Float?
+  brandId               Int
+  categoryId            Int
+
+  brand     Brand    @relation(fields: [brandId], references: [id])
+  category  Category @relation(fields: [categoryId], references: [id])
+  facts     FactTable[]
+}
+
+model FactTable {
+  id                    Int      @id @default(autoincrement())
+  date                  DateTime
+  productId             Int
+  clientId              Int
+  platformId            Int
+
+  total_orders          Int
+  total_mrp_revenue     Float
+  total_final_revenue   Float
+  stock_at_darkstores   Int
+  stock_at_warehouses   Int
+  ad_spend              Float
+  ad_impressions        Int
+  ad_add_to_carts       Int
+  ad_orders             Int
+  ad_orders_othersku    Int
+  ad_orders_samesku     Int
+  ad_revenue            Float
+
+  product   Product   @relation(fields: [productId], references: [id])
+  client    Client    @relation(fields: [clientId], references: [id])
+  platform  Platform  @relation(fields: [platformId], references: [id])
+}
