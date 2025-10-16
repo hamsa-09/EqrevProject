@@ -17,16 +17,23 @@ export const getCategoryMetrics = async (
       SUM(f."total_orders") AS "totalOrders",
       SUM(f."ad_spend") AS "adSpends",
       SUM(f."ad_revenue") AS "adRevenue",
-      CASE WHEN SUM(f."ad_spend") > 0 THEN SUM(f."ad_revenue") / SUM(f."ad_spend") ELSE 0 END AS "roas",
-      CASE WHEN SUM(f."total_orders") > 0 THEN SUM(f."total_final_revenue") / SUM(f."total_orders") ELSE 0 END AS "aov"
+      CASE
+        WHEN SUM(f."ad_spend") > 0 THEN SUM(f."ad_revenue") / SUM(f."ad_spend")
+        ELSE 0
+      END AS "roas",
+      CASE
+        WHEN SUM(f."total_orders") > 0 THEN SUM(f."total_final_revenue") / SUM(f."total_orders")
+        ELSE 0
+      END AS "aov"
     FROM "Category" c
     JOIN "Product" p ON c.id = p."categoryId"
     JOIN "FactTable" f ON p.id = f."productId"
     WHERE f."date" BETWEEN $1 AND $2
     GROUP BY c.id, c.name, c.subcategory_name
-    ORDER BY "totalRevenue" DESC;
+    ORDER BY SUM(f."total_final_revenue") DESC;  -- ✅ sort by total revenue highest first
   `, startDate, endDate);
 };
+
 
 // 🔹 Get total summary
 export const getSummaryMetrics = (data: DBCategoryMetric[]) => {
