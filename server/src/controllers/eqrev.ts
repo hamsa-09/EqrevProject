@@ -2,8 +2,8 @@ import { Request, Response } from "express";
 import fs from "fs";
 import csv from "csv-parser";
 import { PrismaClient } from "../../generated/prisma";
-import { getCategoryMetrics, getSummaryMetrics, getPreviousPeriod } from "../utils/eqrev";
-import { CategoryMetric, DBCategoryMetric } from "../utils/types";
+import { getCategoryMetrics, getSummaryMetrics, getPreviousPeriod,  validateDateRangeMatch, } from "../utils/eqrev";
+import { CategoryMetric,DBCategoryMetric } from "../utils/types";
 const prisma = new PrismaClient();
 
 export const uploadCSV = async (req: Request, res: Response) => {
@@ -181,168 +181,124 @@ export const uploadCSV = async (req: Request, res: Response) => {
   }
 };
 
+export const getAllCategories = async (req: Request, res: Response) => {
+  try {
+    // ✅ Fetch only unique category names
+    const categories = await prisma.category.findMany({
+      distinct: ["name"],  // ensures no duplicate category names
+      select: { name: true },
+      orderBy: { name: "asc" },
+    });
 
+    const categoryList = categories.map((c) => c.name);
+
+    return res.json({ success: true, data: categoryList });
+  } catch (err) {
+    console.error("Error fetching categories:", err);
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to fetch categories" });
+  }
+};
+/**
+ * Dashboard Metrics
+ */
 export const dashboardMetric = async (req: Request, res: Response) => {
   try {
-    const { start, end, limit, offset } = req.body;
+    const { start, end, customStart, customEnd, limit, offset } = req.body;
 
+    // 1️⃣ Validate required dates
     if (!start || !end) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Start and end dates are required" });
+      return res.status(400).json({
+        success: false,
+        message: "Start and end dates are required.",
+      });
     }
 
-    const startDate = new Date(start as string);
-    const endDate = new Date(end as string);
+    const startDate = new Date(start);
+    const endDate = new Date(end);
     const pageLimit = limit ? parseInt(limit as string, 10) : 5;
     const pageOffset = offset ? parseInt(offset as string, 10) : 0;
 
-    // 1️⃣ Previous period calculation
-    const { prevStartDate, prevEndDate } = getPreviousPeriod(
-      startDate,
-      endDate
-    );
+    // 2️⃣ Determine comparison range
+    let compareStartDate: Date;
+    let compareEndDate: Date;
 
-    // 2️⃣ Aggregate using SQL
-    const [currentData, previousData] = await Promise.all([
+    if (customStart && customEnd) {
+      const cs = new Date(customStart);
+      const ce = new Date(customEnd);
+
+      // Validate same duration
+      const { valid, message } = validateDateRangeMatch(startDate, endDate, cs, ce);
+      if (!valid) {
+        return res.status(400).json({ success: false, message });
+      }
+
+      compareStartDate = cs;
+      compareEndDate = ce;
+    } else {
+      // Automatic previous period
+      const { prevStartDate, prevEndDate } = getPreviousPeriod(startDate, endDate);
+      compareStartDate = prevStartDate;
+      compareEndDate = prevEndDate;
+    }
+
+    // 3️⃣ Fetch metrics for current and comparison periods in parallel
+    const [currentData, compareData] = await Promise.all([
       getCategoryMetrics(startDate, endDate),
-      getCategoryMetrics(prevStartDate, prevEndDate),
+      getCategoryMetrics(compareStartDate, compareEndDate),
     ]);
 
-    // 3️⃣ Compare current vs previous
-    const result: CategoryMetric[] = currentData.map(
-      (current: DBCategoryMetric) => {
-        const prev = previousData.find(
-          (p) => p.categoryId === current.categoryId
-        );
+    // 4️⃣ Compare metrics category-wise
+    const result: CategoryMetric[] = currentData.map((current: DBCategoryMetric) => {
+      const compare = compareData.find(c => c.categoryId === current.categoryId);
+      return {
+        categoryId: current.categoryId,
+        category: current.categoryName,
+        subcategory: current.subcategoryName,
+        totalRevenue: Number(current.totalRevenue) || 0,
+        totalRevenueDiff: (Number(current.totalRevenue) || 0) - (Number(compare?.totalRevenue) || 0),
+        totalOrders: Number(current.totalOrders) || 0,
+        totalOrdersDiff: (Number(current.totalOrders) || 0) - (Number(compare?.totalOrders) || 0),
+        adSpends: Number(current.adSpends) || 0,
+        adSpendsDiff: (Number(current.adSpends) || 0) - (Number(compare?.adSpends) || 0),
+        adRevenue: Number(current.adRevenue) || 0,
+        adRevenueDiff: (Number(current.adRevenue) || 0) - (Number(compare?.adRevenue) || 0),
+        roas: Number(current.roas) || 0,
+        roasDiff: (Number(current.roas) || 0) - (Number(compare?.roas) || 0),
+        aov: Number(current.aov) || 0,
+        aovDiff: (Number(current.aov) || 0) - (Number(compare?.aov) || 0),
+      };
+    });
 
-        return {
-          categoryId: current.categoryId,
-          category: current.categoryName,
-          subcategory: current.subcategoryName,
-          totalRevenue: Number(current.totalRevenue) || 0,
-          totalRevenueDiff:
-            (Number(current.totalRevenue) || 0) -
-            (Number(prev?.totalRevenue) || 0),
-          totalOrders: Number(current.totalOrders) || 0,
-          totalOrdersDiff:
-            (Number(current.totalOrders) || 0) -
-            (Number(prev?.totalOrders) || 0),
-          adSpends: Number(current.adSpends) || 0,
-          adSpendsDiff:
-            (Number(current.adSpends) || 0) - (Number(prev?.adSpends) || 0),
-          adRevenue: Number(current.adRevenue) || 0,
-          adRevenueDiff:
-            (Number(current.adRevenue) || 0) - (Number(prev?.adRevenue) || 0),
-          roas: Number(current.roas) || 0,
-          roasDiff: (Number(current.roas) || 0) - (Number(prev?.roas) || 0),
-          aov: Number(current.aov) || 0,
-          aovDiff: (Number(current.aov) || 0) - (Number(prev?.aov) || 0),
-        };
-      }
-    );
-
-    // 4️⃣ Create summary row
+    // 5️⃣ Add summary row at the top
     const summary = getSummaryMetrics(currentData);
 
-    // 5️⃣ Pagination
+    // 6️⃣ Slice for pagination (no recomputation)
     const paginated = result.slice(pageOffset, pageOffset + pageLimit);
-
     paginated.unshift(summary);
 
-    return res.json({
+    // 7️⃣ Return response
+    return res.status(200).json({
       success: true,
+      message: "Dashboard metrics fetched successfully",
       limit: pageLimit,
       offset: pageOffset,
       total: result.length,
+      currentRange: { startDate, endDate },
+      comparisonRange: { compareStartDate, compareEndDate },
       data: paginated,
     });
-  } catch (err) {
-    console.error("Error in dashboardMetric:", err);
-    return res
-      .status(500)
-      .json({ success: false, message: "Something went wrong", error: err });
+  } catch (error) {
+    console.error("Error in dashboardMetric:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Something went wrong while fetching metrics.",
+      error,
+    });
   }
 };
 
-export const dashboardMetric2 = async (req: Request, res: Response) => {
-  try {
-    const { start, end, limit, offset } = req.body;
-
-    if (!start || !end) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Start and end dates are required" });
-    }
-
-    const startDate = new Date(start as string);
-    const endDate = new Date(end as string);
-    const pageLimit = limit ? parseInt(limit as string, 10) : 5;
-    const pageOffset = offset ? parseInt(offset as string, 10) : 0;
-
-    // 1️⃣ Previous period calculation
-    const { prevStartDate, prevEndDate } = getPreviousPeriod(
-      startDate,
-      endDate
-    );
-
-    // 2️⃣ Aggregate using SQL
-    const [currentData, previousData] = await Promise.all([
-      getCategoryMetrics(startDate, endDate),
-      getCategoryMetrics(prevStartDate, prevEndDate),
-    ]);
-
-    // 3️⃣ Compare current vs previous
-    const result: CategoryMetric[] = currentData.map(
-      (current: DBCategoryMetric) => {
-        const prev = previousData.find(
-          (p) => p.categoryId === current.categoryId
-        );
-
-        return {
-          categoryId: current.categoryId,
-          category: current.categoryName,
-          subcategory: current.subcategoryName,
-          totalRevenue: Number(current.totalRevenue) || 0,
-          totalRevenueDiff:
-            (Number(current.totalRevenue) || 0) -
-            (Number(prev?.totalRevenue) || 0),
-          totalOrders: Number(current.totalOrders) || 0,
-          totalOrdersDiff:
-            (Number(current.totalOrders) || 0) -
-            (Number(prev?.totalOrders) || 0),
-          adSpends: Number(current.adSpends) || 0,
-          adSpendsDiff:
-            (Number(current.adSpends) || 0) - (Number(prev?.adSpends) || 0),
-          adRevenue: Number(current.adRevenue) || 0,
-          adRevenueDiff:
-            (Number(current.adRevenue) || 0) - (Number(prev?.adRevenue) || 0),
-          roas: Number(current.roas) || 0,
-          roasDiff: (Number(current.roas) || 0) - (Number(prev?.roas) || 0),
-          aov: Number(current.aov) || 0,
-          aovDiff: (Number(current.aov) || 0) - (Number(prev?.aov) || 0),
-        };
-      }
-    );
-
-    // 5️⃣ Pagination
-    const paginated = result.slice(pageOffset, pageOffset + pageLimit);
-    // paginated.unshift(summary);
-
-    return res.json({
-      success: true,
-      limit: pageLimit,
-      offset: pageOffset,
-      total: result.length,
-      data: paginated,
-    });
-  } catch (err) {
-    console.error("Error in dashboardMetric:", err);
-    return res
-      .status(500)
-      .json({ success: false, message: "Something went wrong", error: err });
-  }
-};
 
 //@path GET http://localhost:3000/api/dashboardSort
 //@params start = start date range, end = end date range, limit = pagination limit, offset = no.of rows to skip, sortBy=sort by which metric, order = desc | asc
@@ -356,84 +312,60 @@ export const dashboardMetricSorted = async (req: Request, res: Response) => {
         .json({ success: false, message: "Start and end dates are required" });
     }
 
-    const startDate = new Date(start as string);
-    const endDate = new Date(end as string);
+    const startDate = new Date(start);
+    const endDate = new Date(end);
     const pageLimit = limit ? parseInt(limit as string, 10) : 5;
     const pageOffset = offset ? parseInt(offset as string, 10) : 0;
-    const sortKey = typeof sortBy === "string" ? sortBy : undefined;
-    const sortOrder = (order as string) === "asc" ? "asc" : "desc";
 
-    const { prevStartDate, prevEndDate } = getPreviousPeriod(
-      startDate,
-      endDate
-    );
+    const sortKey = typeof sortBy === "string" ? sortBy : "totalRevenue"; // default
+    const sortOrder = order === "asc" ? "asc" : "desc"; // default desc
 
+    const { prevStartDate, prevEndDate } = getPreviousPeriod(startDate, endDate);
+
+    // fetch metrics
     const [currentData, previousData] = await Promise.all([
       getCategoryMetrics(startDate, endDate),
       getCategoryMetrics(prevStartDate, prevEndDate),
     ]);
 
-    const result: CategoryMetric[] = currentData.map(
-      (current: DBCategoryMetric) => {
-        const prev = previousData.find(
-          (p) => p.categoryId === current.categoryId
-        );
+    const result: CategoryMetric[] = currentData.map((current: DBCategoryMetric) => {
+      const prev = previousData.find((p) => p.categoryId === current.categoryId);
+      return {
+        categoryId: current.categoryId,
+        category: current.categoryName,
+        subcategory: current.subcategoryName,
+        totalRevenue: Number(current.totalRevenue) || 0,
+        totalRevenueDiff: (Number(current.totalRevenue) || 0) - (Number(prev?.totalRevenue) || 0),
+        totalOrders: Number(current.totalOrders) || 0,
+        totalOrdersDiff: (Number(current.totalOrders) || 0) - (Number(prev?.totalOrders) || 0),
+        adSpends: Number(current.adSpends) || 0,
+        adSpendsDiff: (Number(current.adSpends) || 0) - (Number(prev?.adSpends) || 0),
+        adRevenue: Number(current.adRevenue) || 0,
+        adRevenueDiff: (Number(current.adRevenue) || 0) - (Number(prev?.adRevenue) || 0),
+        roas: Number(current.roas) || 0,
+        roasDiff: (Number(current.roas) || 0) - (Number(prev?.roas) || 0),
+        aov: Number(current.aov) || 0,
+        aovDiff: (Number(current.aov) || 0) - (Number(prev?.aov) || 0),
+      };
+    });
 
-        return {
-          categoryId: current.categoryId,
-          category: current.categoryName,
-          subcategory: current.subcategoryName,
-          totalRevenue: Number(current.totalRevenue) || 0,
-          totalRevenueDiff:
-            (Number(current.totalRevenue) || 0) -
-            (Number(prev?.totalRevenue) || 0),
-          totalOrders: Number(current.totalOrders) || 0,
-          totalOrdersDiff:
-            (Number(current.totalOrders) || 0) -
-            (Number(prev?.totalOrders) || 0),
-          adSpends: Number(current.adSpends) || 0,
-          adSpendsDiff:
-            (Number(current.adSpends) || 0) - (Number(prev?.adSpends) || 0),
-          adRevenue: Number(current.adRevenue) || 0,
-          adRevenueDiff:
-            (Number(current.adRevenue) || 0) - (Number(prev?.adRevenue) || 0),
-          roas: Number(current.roas) || 0,
-          roasDiff: (Number(current.roas) || 0) - (Number(prev?.roas) || 0),
-          aov: Number(current.aov) || 0,
-          aovDiff: (Number(current.aov) || 0) - (Number(prev?.aov) || 0),
-        };
-      }
-    );
+    // allowed columns for sorting
+    const allowed = new Set(["totalRevenue", "totalOrders", "adSpends", "adRevenue", "roas", "aov"]);
 
-    // allowed sort keys
-    const allowed = new Set([
-      "totalRevenue",
-      "totalOrders",
-      "adRevenue",
-      "roas",
-      "roasDiff",
-      "aov",
-    ]);
-
-    if (sortKey && allowed.has(sortKey)) {
+    if (allowed.has(sortKey)) {
       const dir = sortOrder === "asc" ? 1 : -1;
       result.sort((a, b) => {
         const va = Number((a as any)[sortKey]) || 0;
         const vb = Number((b as any)[sortKey]) || 0;
-        if (va === vb) {
-          const ai = Number(a.categoryId);
-          const bi = Number(b.categoryId);
-          if (!isNaN(ai) && !isNaN(bi)) return ai - bi;
-          return String(a.categoryId).localeCompare(String(b.categoryId));
-        }
+        if (va === vb) return 0;
         return (va - vb) * dir;
       });
     }
+    const summary = getSummaryMetrics(currentData); // same as in dashboardMetric
+const paginated = result.slice(pageOffset, pageOffset + pageLimit);
+paginated.unshift(summary); // add summary at the top
 
-    // const summary = getSummaryMetrics(currentData);
 
-    const paginated = result.slice(pageOffset, pageOffset + pageLimit);
-    // paginated.unshift(summary);
 
     return res.json({
       success: true,
@@ -444,12 +376,6 @@ export const dashboardMetricSorted = async (req: Request, res: Response) => {
     });
   } catch (err) {
     console.error("Error in dashboardMetricSorted:", err);
-    return res
-      .status(500)
-      .json({ success: false, message: "Something went wrong", error: err });
+    return res.status(500).json({ success: false, message: "Something went wrong", error: err });
   }
 };
-
-export const dashboardMetricCompare=async(req:Request,res:Response)=>{
-    
-}

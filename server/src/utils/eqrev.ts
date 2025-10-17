@@ -64,12 +64,46 @@ export const getSummaryMetrics = (data: DBCategoryMetric[]) => {
   };
 };
 
-// 🔹 Calculate previous period
+/**
+ * 🔹 Calculate previous period (same duration before current)
+ */
 export const getPreviousPeriod = (startDate: Date, endDate: Date) => {
-  const diffDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  const diffDays = getDateDiffInDays(startDate, endDate);
   const prevEndDate = new Date(startDate);
   prevEndDate.setDate(startDate.getDate() - 1);
   const prevStartDate = new Date(prevEndDate);
   prevStartDate.setDate(prevEndDate.getDate() - (diffDays - 1));
   return { prevStartDate, prevEndDate };
+};
+
+/**
+ * 🆕 Helper: Get inclusive difference between two dates in days
+ */
+export const getDateDiffInDays = (startDate: Date, endDate: Date): number => {
+  const msDiff = endDate.getTime() - startDate.getTime();
+  return Math.ceil(msDiff / (1000 * 60 * 60 * 24)) + 1;
+};
+
+/**
+ * 🆕 Helper: Validate that two ranges are equal in duration
+ */
+export const validateDateRangeMatch = (
+  currentStart: Date,
+  currentEnd: Date,
+  customStart: Date,
+  customEnd: Date
+): { valid: boolean; message?: string; expectedDays: number; actualDays: number } => {
+  const expectedDays = getDateDiffInDays(currentStart, currentEnd);
+  const actualDays = getDateDiffInDays(customStart, customEnd);
+
+  if (expectedDays !== actualDays) {
+    return {
+      valid: false,
+      expectedDays,
+      actualDays,
+      message: `Please select a valid comparison range of ${expectedDays} days (you selected ${actualDays} days).`,
+    };
+  }
+
+  return { valid: true, expectedDays, actualDays };
 };

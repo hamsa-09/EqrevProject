@@ -5,20 +5,52 @@ const api = axios.create({
   baseURL: BASE_URL,
 });
 
-export const fetchDashboardDetails = async () => {
-  const endDate = new Date();
-  const startDate = new Date();
 
-  startDate.setDate(endDate.getDate() - 14);
-  const start = formatDate(startDate);
-  const end = formatDate(endDate);
-  const res = await api.get(`/OverAlldashboard?start=${"2025-09-16"}&end=${"2025-09-30"}`);
+// ✅ Fetch all categories (for dropdown)
+export const fetchCategories = async () => {
+  const res = await api.get("/categories"); // adjust route if your backend differs
   return res.data;
 };
 
-const formatDate = (date: Date) => {
-  const dd = String(date.getDate()).padStart(2, "0");
-  const mm = String(date.getMonth() + 1).padStart(2, "0");
-  const yyyy = date.getFullYear();
-  return `${yyyy}-${mm}-${dd}`;
+export const fetchDashboardMetrics = async ({
+  start,
+  end,
+  customStart,
+  customEnd,
+  limit,
+  offset,
+}: {
+  start: string;
+  end: string;
+  customStart?: string | null;
+  customEnd?: string | null;
+  limit?: number;
+  offset?: number;
+}) => {
+  const body = { start, end, customStart, customEnd, limit, offset };
+  const res = await api.post("/OverAlldashboard", body);
+  return res.data;
+};
+
+// ---------------------------
+// 3️⃣ Fetch Sorted Dashboard Metrics
+// ---------------------------
+export const fetchDashboardSorted = async ({
+  start,
+  end,
+  limit,
+  offset,
+  sortBy,
+  order,
+}: {
+  start: string;
+  end: string;
+  limit?: number;
+  offset?: number;
+  sortBy?: string;
+  order?: "desc";
+}) => {
+  const body = { start, end, limit, offset, sortBy, order };
+  const res = await api.post("/dashboardSort", body);
+  return res.data;
 };

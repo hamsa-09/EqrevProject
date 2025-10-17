@@ -1,10 +1,10 @@
 import express from "express"
-import { uploadCSV,dashboardMetric, dashboardMetric2, dashboardMetricSorted,dashboardMetricCompare } from "../controllers/eqrev";
+import { uploadCSV,dashboardMetric,  dashboardMetricSorted, getAllCategories} from "../controllers/eqrev";
 const route=express.Router()
 
 route.post("/uploadCSV",uploadCSV)
+route.get("/categories", getAllCategories);
 route.post("/OverAlldashboard",dashboardMetric)
-route.post("/dashboardTable",dashboardMetric2)
 route.post("/dashboardSort",dashboardMetricSorted)
-route.post("/getCustomDashboard",dashboardMetricCompare)
+
 export default route;
