@@ -5,7 +5,6 @@ const api = axios.create({
   baseURL: BASE_URL,
 });
 
-
 // ✅ Fetch all categories (for dropdown)
 export const fetchCategories = async () => {
   const res = await api.get("/categories"); // adjust route if your backend differs
@@ -29,6 +28,7 @@ export const fetchDashboardMetrics = async ({
 }) => {
   const body = { start, end, customStart, customEnd, limit, offset };
   const res = await api.post("/OverAlldashboard", body);
+  console.log(res.data);
   return res.data;
 };
 
@@ -52,5 +52,23 @@ export const fetchDashboardSorted = async ({
 }) => {
   const body = { start, end, limit, offset, sortBy, order };
   const res = await api.post("/dashboardSort", body);
+  return res.data;
+};
+
+// ---------------------------
+// 4️⃣ Fetch Line Chart Metrics
+// ---------------------------
+export const fetchLineChartMetrics = async ({
+  start,
+  end,
+  metrics,
+}: {
+  start: string;
+  end: string;
+  metrics?: string[];
+}) => {
+  const body = { start, end, metrics };
+  const res = await api.post("/lineChartMetrics", body);
+  console.log(res.data)
   return res.data;
 };

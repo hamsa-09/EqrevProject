@@ -27,3 +27,22 @@ export interface DBCategoryMetric {
   roas: number;
   aov: number;
 }
+export interface DailyMetricData {
+  date: string;
+  metric1Value: number;
+  metric2Value: number;
+}
+
+export interface LineChartResponse {
+  success: boolean;
+  message: string;
+  dateRange: {
+    startDate: Date;
+    endDate: Date;
+  };
+  metrics: {
+    metric1: string;
+    metric2: string;
+  };
+  data: DailyMetricData[];
+}

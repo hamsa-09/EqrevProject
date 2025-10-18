@@ -2,8 +2,18 @@ import { Request, Response } from "express";
 import fs from "fs";
 import csv from "csv-parser";
 import { PrismaClient } from "../../generated/prisma";
-import { getCategoryMetrics, getSummaryMetrics, getPreviousPeriod,  validateDateRangeMatch, } from "../utils/eqrev";
-import { CategoryMetric,DBCategoryMetric } from "../utils/types";
+import {
+  getCategoryMetrics,
+  getSummaryMetrics,
+  getPreviousPeriod,
+  validateDateRangeMatch,
+  getDailyMetrics,
+} from "../utils/eqrev";
+import {
+  CategoryMetric,
+  DBCategoryMetric,
+  LineChartResponse,
+} from "../utils/types";
 const prisma = new PrismaClient();
 
 export const uploadCSV = async (req: Request, res: Response) => {
@@ -21,7 +31,8 @@ export const uploadCSV = async (req: Request, res: Response) => {
         .on("error", reject);
     });
 
-    if (rows.length === 0) return res.status(400).json({ error: "CSV is empty" });
+    if (rows.length === 0)
+      return res.status(400).json({ error: "CSV is empty" });
 
     // Normalize headers (case-insensitive, trimmed)
     const normalize = (str: string) => str?.trim().toLowerCase();
@@ -50,10 +61,21 @@ export const uploadCSV = async (req: Request, res: Response) => {
       const productId = headers["product_id"];
       const productName = headers["product_name"];
 
-      if (!brandName || !categoryName || !subcategoryName || !clientId || !platformName || !productId) continue;
+      if (
+        !brandName ||
+        !categoryName ||
+        !subcategoryName ||
+        !clientId ||
+        !platformName ||
+        !productId
+      )
+        continue;
 
       brandSet.set(brandName, { name: brandName });
-      categorySet.set(`${categoryName}-${subcategoryName}`, { name: categoryName, subcategory_name: subcategoryName });
+      categorySet.set(`${categoryName}-${subcategoryName}`, {
+        name: categoryName,
+        subcategory_name: subcategoryName,
+      });
       clientSet.set(clientId, { client_id: clientId });
       platformSet.set(platformName, { name: platformName });
 
@@ -65,8 +87,12 @@ export const uploadCSV = async (req: Request, res: Response) => {
         product_type: headers["product_type"] || null,
         bundle_id: headers["bundle_id"] || null,
         product_image: headers["product_image"] || null,
-        maximum_retail_price: headers["maximum_retail_price"] ? parseFloat(headers["maximum_retail_price"]) : null,
-        discounted_selling_price: headers["discounted_selling_price"] ? parseFloat(headers["discounted_selling_price"]) : null,
+        maximum_retail_price: headers["maximum_retail_price"]
+          ? parseFloat(headers["maximum_retail_price"])
+          : null,
+        discounted_selling_price: headers["discounted_selling_price"]
+          ? parseFloat(headers["discounted_selling_price"])
+          : null,
         // brand_name, category_name, subcategory_name are NOT part of the Product model
         // They are only used for mapping to foreign keys
         brand_name: brandName,
@@ -79,39 +105,74 @@ export const uploadCSV = async (req: Request, res: Response) => {
         product_id: productId,
         client_id: clientId,
         platform_name: platformName,
-        total_orders: headers["total_orders"] ? parseInt(headers["total_orders"]) : 0,
-        total_mrp_revenue: headers["total_mrp_revenue"] ? parseFloat(headers["total_mrp_revenue"]) : 0,
-        total_final_revenue: headers["total_final_revenue"] ? parseFloat(headers["total_final_revenue"]) : 0,
-        stock_at_darkstores: headers["stock_at_darkstores"] ? parseInt(headers["stock_at_darkstores"]) : 0,
-        stock_at_warehouses: headers["stock_at_warehouses"] ? parseInt(headers["stock_at_warehouses"]) : 0,
+        total_orders: headers["total_orders"]
+          ? parseInt(headers["total_orders"])
+          : 0,
+        total_mrp_revenue: headers["total_mrp_revenue"]
+          ? parseFloat(headers["total_mrp_revenue"])
+          : 0,
+        total_final_revenue: headers["total_final_revenue"]
+          ? parseFloat(headers["total_final_revenue"])
+          : 0,
+        stock_at_darkstores: headers["stock_at_darkstores"]
+          ? parseInt(headers["stock_at_darkstores"])
+          : 0,
+        stock_at_warehouses: headers["stock_at_warehouses"]
+          ? parseInt(headers["stock_at_warehouses"])
+          : 0,
         ad_spend: headers["ad_spend"] ? parseFloat(headers["ad_spend"]) : 0,
-        ad_impressions: headers["ad_impressions"] ? parseInt(headers["ad_impressions"]) : 0,
-        ad_add_to_carts: headers["ad_add_to_carts"] ? parseInt(headers["ad_add_to_carts"]) : 0,
+        ad_impressions: headers["ad_impressions"]
+          ? parseInt(headers["ad_impressions"])
+          : 0,
+        ad_add_to_carts: headers["ad_add_to_carts"]
+          ? parseInt(headers["ad_add_to_carts"])
+          : 0,
         ad_orders: headers["ad_orders"] ? parseInt(headers["ad_orders"]) : 0,
-        ad_orders_othersku: headers["ad_orders_othersku"] ? parseInt(headers["ad_orders_othersku"]) : 0,
-        ad_orders_samesku: headers["ad_orders_samesku"] ? parseInt(headers["ad_orders_samesku"]) : 0,
-        ad_revenue: headers["ad_revenue"] ? parseFloat(headers["ad_revenue"]) : 0,
+        ad_orders_othersku: headers["ad_orders_othersku"]
+          ? parseInt(headers["ad_orders_othersku"])
+          : 0,
+        ad_orders_samesku: headers["ad_orders_samesku"]
+          ? parseInt(headers["ad_orders_samesku"])
+          : 0,
+        ad_revenue: headers["ad_revenue"]
+          ? parseFloat(headers["ad_revenue"])
+          : 0,
       });
     }
 
     // 4️⃣ Insert entities in bulk
     await prisma.$transaction([
-      prisma.brand.createMany({ data: Array.from(brandSet.values()), skipDuplicates: true }),
-      prisma.category.createMany({ data: Array.from(categorySet.values()), skipDuplicates: true }),
-      prisma.client.createMany({ data: Array.from(clientSet.values()), skipDuplicates: true }),
-      prisma.platform.createMany({ data: Array.from(platformSet.values()), skipDuplicates: true }),
+      prisma.brand.createMany({
+        data: Array.from(brandSet.values()),
+        skipDuplicates: true,
+      }),
+      prisma.category.createMany({
+        data: Array.from(categorySet.values()),
+        skipDuplicates: true,
+      }),
+      prisma.client.createMany({
+        data: Array.from(clientSet.values()),
+        skipDuplicates: true,
+      }),
+      prisma.platform.createMany({
+        data: Array.from(platformSet.values()),
+        skipDuplicates: true,
+      }),
     ]);
 
     // 5️⃣ Fetch IDs to resolve FKs
-    const [allBrands, allCategories, allClients, allPlatforms] = await Promise.all([
-      prisma.brand.findMany(),
-      prisma.category.findMany(),
-      prisma.client.findMany(),
-      prisma.platform.findMany(),
-    ]);
+    const [allBrands, allCategories, allClients, allPlatforms] =
+      await Promise.all([
+        prisma.brand.findMany(),
+        prisma.category.findMany(),
+        prisma.client.findMany(),
+        prisma.platform.findMany(),
+      ]);
 
     const brandMap = new Map(allBrands.map((b) => [b.name, b.id]));
-    const categoryMap = new Map(allCategories.map((c) => [`${c.name}-${c.subcategory_name}`, c.id]));
+    const categoryMap = new Map(
+      allCategories.map((c) => [`${c.name}-${c.subcategory_name}`, c.id])
+    );
     const clientMap = new Map(allClients.map((c) => [c.client_id, c.id]));
     const platformMap = new Map(allPlatforms.map((p) => [p.name, p.id]));
 
@@ -119,7 +180,9 @@ export const uploadCSV = async (req: Request, res: Response) => {
     const productsData = Array.from(productSet.values())
       .map((p) => {
         const brandId = brandMap.get(p.brand_name);
-        const categoryId = categoryMap.get(`${p.category_name}-${p.subcategory_name}`);
+        const categoryId = categoryMap.get(
+          `${p.category_name}-${p.subcategory_name}`
+        );
         if (!brandId || !categoryId) return null;
         // Remove brand_name, category_name, subcategory_name before insert
         const { brand_name, category_name, subcategory_name, ...rest } = p;
@@ -127,11 +190,18 @@ export const uploadCSV = async (req: Request, res: Response) => {
       })
       .filter(Boolean) as any[];
 
-    await prisma.product.createMany({ data: productsData, skipDuplicates: true });
+    await prisma.product.createMany({
+      data: productsData,
+      skipDuplicates: true,
+    });
 
     // 7️⃣ Insert facts
     const productMap = new Map(
-      (await prisma.product.findMany({ select: { id: true, product_id: true } })).map((p) => [p.product_id, p.id])
+      (
+        await prisma.product.findMany({
+          select: { id: true, product_id: true },
+        })
+      ).map((p) => [p.product_id, p.id])
     );
 
     const factsData = factRows
@@ -162,7 +232,8 @@ export const uploadCSV = async (req: Request, res: Response) => {
       })
       .filter(Boolean) as any[];
 
-    if (factsData.length) await prisma.factTable.createMany({ data: factsData });
+    if (factsData.length)
+      await prisma.factTable.createMany({ data: factsData });
 
     res.json({
       message: "✅ CSV imported successfully",
@@ -185,7 +256,7 @@ export const getAllCategories = async (req: Request, res: Response) => {
   try {
     // ✅ Fetch only unique category names
     const categories = await prisma.category.findMany({
-      distinct: ["name"],  // ensures no duplicate category names
+      distinct: ["name"], // ensures no duplicate category names
       select: { name: true },
       orderBy: { name: "asc" },
     });
@@ -204,8 +275,8 @@ export const getAllCategories = async (req: Request, res: Response) => {
  * Dashboard Metrics
  */
 export const dashboardMetric = async (req: Request, res: Response) => {
-  try {
-    const { start, end, customStart, customEnd, limit, offset } = req.body;
+   try {
+    const { start, end, customStart, customEnd, limit, offset, sortBy, order } = req.body;
 
     // 1️⃣ Validate required dates
     if (!start || !end) {
@@ -216,9 +287,14 @@ export const dashboardMetric = async (req: Request, res: Response) => {
     }
 
     const startDate = new Date(start);
-    const endDate = new Date(end);
-    const pageLimit = limit ? parseInt(limit as string, 10) : 5;
-    const pageOffset = offset ? parseInt(offset as string, 10) : 0;
+const endDate = new Date(end);
+
+// ✅ Adjust endDate to include the full day (for single-day selection)
+const endDatePlus1 = new Date(endDate);
+endDatePlus1.setDate(endDate.getDate() + 1);
+
+const pageLimit = limit ? parseInt(limit as string, 10) : 5;
+const pageOffset = offset ? parseInt(offset as string, 10) : 0;
 
     // 2️⃣ Determine comparison range
     let compareStartDate: Date;
@@ -245,13 +321,13 @@ export const dashboardMetric = async (req: Request, res: Response) => {
 
     // 3️⃣ Fetch metrics for current and comparison periods in parallel
     const [currentData, compareData] = await Promise.all([
-      getCategoryMetrics(startDate, endDate),
+      getCategoryMetrics(startDate, endDatePlus1),
       getCategoryMetrics(compareStartDate, compareEndDate),
     ]);
 
     // 4️⃣ Compare metrics category-wise
     const result: CategoryMetric[] = currentData.map((current: DBCategoryMetric) => {
-      const compare = compareData.find(c => c.categoryId === current.categoryId);
+      const compare = compareData.find((c) => c.categoryId === current.categoryId);
       return {
         categoryId: current.categoryId,
         category: current.categoryName,
@@ -271,14 +347,30 @@ export const dashboardMetric = async (req: Request, res: Response) => {
       };
     });
 
-    // 5️⃣ Add summary row at the top
+    // 5️⃣ Apply sorting (default: totalRevenue desc)
+    const sortKey = typeof sortBy === "string" ? sortBy : "totalRevenue";
+    const sortOrder = order === "asc" ? "asc" : "desc";
+
+    const allowedSortKeys = new Set(["totalRevenue", "totalOrders", "adSpends", "adRevenue", "roas", "aov"]);
+
+    if (allowedSortKeys.has(sortKey)) {
+      const dir = sortOrder === "asc" ? 1 : -1;
+      result.sort((a, b) => {
+        const va = Number((a as any)[sortKey]) || 0;
+        const vb = Number((b as any)[sortKey]) || 0;
+        if (va === vb) return 0;
+        return (va - vb) * dir;
+      });
+    }
+
+    // 6️⃣ Add summary row at the top
     const summary = getSummaryMetrics(currentData);
 
-    // 6️⃣ Slice for pagination (no recomputation)
+    // 7️⃣ Slice for pagination
     const paginated = result.slice(pageOffset, pageOffset + pageLimit);
     paginated.unshift(summary);
 
-    // 7️⃣ Return response
+    // 8️⃣ Return response
     return res.status(200).json({
       success: true,
       message: "Dashboard metrics fetched successfully",
@@ -290,7 +382,7 @@ export const dashboardMetric = async (req: Request, res: Response) => {
       data: paginated,
     });
   } catch (error) {
-    console.error("Error in dashboardMetric:", error);
+    console.error("Error in dashboardMetricUnified:", error);
     return res.status(500).json({
       success: false,
       message: "Something went wrong while fetching metrics.",
@@ -300,82 +392,74 @@ export const dashboardMetric = async (req: Request, res: Response) => {
 };
 
 
-//@path GET http://localhost:3000/api/dashboardSort
-//@params start = start date range, end = end date range, limit = pagination limit, offset = no.of rows to skip, sortBy=sort by which metric, order = desc | asc
-export const dashboardMetricSorted = async (req: Request, res: Response) => {
+/**
+ * 🔹 Get daily metrics for line chart
+ * @route POST /api/lineChartMetrics
+ * @param {string} start - Optional start date (defaults to 15 days before current date)
+ * @param {string} end - Optional end date (defaults to current date)
+ * @param {string} metric1 - First metric name (defaults to 'totalRevenue')
+ * @param {string} metric2 - Second metric name (defaults to 'totalOrders')
+ */
+export const getLineChartMetrics = async (req: Request, res: Response) => {
   try {
-    const { start, end, limit, offset, sortBy, order } = req.body;
+    const { start, end, metric1, metric2 } = req.body;
+    console.log(metric1, metric2)
+    // Default date range: 15 days before current date to current date
+    // End date is today
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    // Start date is 15 days before today
+    const fifteenDaysAgo = new Date();
+    fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
+    fifteenDaysAgo.setHours(0, 0, 0, 0);
 
-    if (!start || !end) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Start and end dates are required" });
-    }
+    const startDate = start ? new Date(start) : fifteenDaysAgo;
+    const endDate = end ? new Date(end) : today;
 
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-    const pageLimit = limit ? parseInt(limit as string, 10) : 5;
-    const pageOffset = offset ? parseInt(offset as string, 10) : 0;
+    // Ensure time is set to start/end of day for proper comparison
+    if (start) startDate.setHours(0, 0, 0, 0);
+    if (end) endDate.setHours(23, 59, 59, 999);
 
-    const sortKey = typeof sortBy === "string" ? sortBy : "totalRevenue"; // default
-    const sortOrder = order === "asc" ? "asc" : "desc"; // default desc
+    // Default metrics
+    const firstMetric = metric1 || "totalRevenue";
+    const secondMetric = metric2 || "totalOrders";
 
-    const { prevStartDate, prevEndDate } = getPreviousPeriod(startDate, endDate);
-
-    // fetch metrics
-    const [currentData, previousData] = await Promise.all([
-      getCategoryMetrics(startDate, endDate),
-      getCategoryMetrics(prevStartDate, prevEndDate),
-    ]);
-
-    const result: CategoryMetric[] = currentData.map((current: DBCategoryMetric) => {
-      const prev = previousData.find((p) => p.categoryId === current.categoryId);
-      return {
-        categoryId: current.categoryId,
-        category: current.categoryName,
-        subcategory: current.subcategoryName,
-        totalRevenue: Number(current.totalRevenue) || 0,
-        totalRevenueDiff: (Number(current.totalRevenue) || 0) - (Number(prev?.totalRevenue) || 0),
-        totalOrders: Number(current.totalOrders) || 0,
-        totalOrdersDiff: (Number(current.totalOrders) || 0) - (Number(prev?.totalOrders) || 0),
-        adSpends: Number(current.adSpends) || 0,
-        adSpendsDiff: (Number(current.adSpends) || 0) - (Number(prev?.adSpends) || 0),
-        adRevenue: Number(current.adRevenue) || 0,
-        adRevenueDiff: (Number(current.adRevenue) || 0) - (Number(prev?.adRevenue) || 0),
-        roas: Number(current.roas) || 0,
-        roasDiff: (Number(current.roas) || 0) - (Number(prev?.roas) || 0),
-        aov: Number(current.aov) || 0,
-        aovDiff: (Number(current.aov) || 0) - (Number(prev?.aov) || 0),
-      };
-    });
-
-    // allowed columns for sorting
-    const allowed = new Set(["totalRevenue", "totalOrders", "adSpends", "adRevenue", "roas", "aov"]);
-
-    if (allowed.has(sortKey)) {
-      const dir = sortOrder === "asc" ? 1 : -1;
-      result.sort((a, b) => {
-        const va = Number((a as any)[sortKey]) || 0;
-        const vb = Number((b as any)[sortKey]) || 0;
-        if (va === vb) return 0;
-        return (va - vb) * dir;
+    // Validate date range
+    if (startDate > endDate) {
+      return res.status(400).json({
+        success: false,
+        message: "Start date cannot be after end date.",
       });
     }
-    const summary = getSummaryMetrics(currentData); // same as in dashboardMetric
-const paginated = result.slice(pageOffset, pageOffset + pageLimit);
-paginated.unshift(summary); // add summary at the top
-
-
-
-    return res.json({
+    // Fetch daily metrics
+    const data = await getDailyMetrics(
+      startDate,
+      endDate,
+      firstMetric,
+      secondMetric
+    );
+    const response: LineChartResponse = {
       success: true,
-      limit: pageLimit,
-      offset: pageOffset,
-      total: result.length,
-      data: paginated,
+      message: "Daily metrics fetched successfully",
+      dateRange: {
+        startDate,
+        endDate,
+      },
+      metrics: {
+        metric1: firstMetric,
+        metric2: secondMetric,
+      },
+      data,
+    };
+    return res.status(200).json(response);
+  } catch (error: any) {
+    console.error("Error in getLineChartMetrics:", error);
+    return res.status(500).json({
+      success: false,
+      message:
+        error.message ||
+        "Something went wrong while fetching line chart metrics.",
+      error,
     });
-  } catch (err) {
-    console.error("Error in dashboardMetricSorted:", err);
-    return res.status(500).json({ success: false, message: "Something went wrong", error: err });
   }
 };
