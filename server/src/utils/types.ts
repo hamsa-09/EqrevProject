@@ -27,6 +27,7 @@ export interface DBCategoryMetric {
   roas: number;
   aov: number;
 }
+
 export interface DailyMetricData {
   date: string;
   metric1Value: number;
@@ -37,8 +38,8 @@ export interface LineChartResponse {
   success: boolean;
   message: string;
   dateRange: {
-    startDate: Date;
-    endDate: Date;
+    startDate: string; // use string for API JSON compatibility
+    endDate: string;
   };
   metrics: {
     metric1: string;

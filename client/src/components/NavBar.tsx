@@ -1,211 +1,281 @@
-// components/Navbar.tsx
-import { useEffect, useState } from "react";
-import { DateRange } from "react-date-range";
-import { format } from "date-fns";
-import { fetchCategories } from "../Apis";
-import "react-date-range/dist/styles.css";
-import "react-date-range/dist/theme/default.css";
+import { useEffect, useState } from 'react';
+import { DateRange } from 'react-date-range';
+import { format } from 'date-fns';
+import { fetchCategories } from '../Apis';
+import 'react-date-range/dist/styles.css';
+import 'react-date-range/dist/theme/default.css';
 
 interface NavbarProps {
-  dateRange: { startDate: Date; endDate: Date };
-  setDateRange: React.Dispatch<React.SetStateAction<{ startDate: Date; endDate: Date }>>;
-  selectedCategory: string;
-  setSelectedCategory: React.Dispatch<React.SetStateAction<string>>;
+    dateRange: { startDate: Date; endDate: Date };
+    setDateRange: React.Dispatch<
+        React.SetStateAction<{ startDate: Date; endDate: Date }>
+    >;
+     selectedCategory: string[];
+    setSelectedCategory: React.Dispatch<React.SetStateAction<string[]>>;
 }
 
 export default function Navbar({
-  dateRange,
-  setDateRange,
-  selectedCategory,
-  setSelectedCategory,
+    dateRange,
+    setDateRange,
+    selectedCategory,
+    setSelectedCategory,
 }: NavbarProps) {
-  const [categories, setCategories] = useState<string[]>([]);
-  const [brand, setBrand] = useState("Mee Mee");
-  const [showCalendar, setShowCalendar] = useState(false);
-  const [compareEnabled, setCompareEnabled] = useState(false);
-  const [showCompareCalendar, setShowCompareCalendar] = useState(false);
-  const [compareDateRange, setCompareDateRange] = useState({
-    startDate: dateRange.startDate,
-    endDate: dateRange.endDate,
-  });
-  const [compareError, setCompareError] = useState<string | null>(null);
+    const [categories, setCategories] = useState<string[]>([]);
+    const [showCategories, setShowCategories] = useState(false);
+    const [brand] = useState('Mee Mee');
+    const [showCalendar, setShowCalendar] = useState(false);
+    const [customEnabled, setCustomEnabled] = useState(false);
+    const [showCustomCalendar, setShowCustomCalendar] = useState(false);
+    const [customDateRange, setCustomDateRange] = useState({
+        startDate: dateRange.startDate,
+        endDate: dateRange.endDate,
+    });
+    const [tempRange, setTempRange] = useState(dateRange);
+    const [compareError, setCompareError] = useState<string | null>(null);
 
-  // 🔹 Load categories
-  useEffect(() => {
-    const loadCategories = async () => {
-      try {
-        const response = await fetchCategories();
-        if (response && Array.isArray(response.data)) {
-          setCategories(response.data);
-        } else {
-          console.warn("Categories data is not an array", response);
-          setCategories([]);
-        }
-      } catch (err) {
-        console.error("Failed to load categories", err);
-        setCategories([]);
-      }
-    };
-    loadCategories();
-  }, []);
-
-  const formattedRange = `${format(dateRange.startDate, "dd/MM/yyyy")} - ${format(
-    dateRange.endDate,
-    "dd/MM/yyyy"
-  )}`;
-
-  const handleCompareApply = () => {
-    const currentDays =
-      (dateRange.endDate.getTime() - dateRange.startDate.getTime()) /
-        (1000 * 60 * 60 * 24) +
-      1;
-    const compareDays =
-      (compareDateRange.endDate.getTime() - compareDateRange.startDate.getTime()) /
-        (1000 * 60 * 60 * 24) +
-      1;
-
-    if (currentDays !== compareDays) {
-      setCompareError(
-        `Please select a range of ${currentDays} days (you selected ${compareDays}).`
-      );
-      return;
-    }
-
-    setCompareError(null);
-    setShowCompareCalendar(false);
-
-    // Dispatch event only when compare mode is ON
-    if (compareEnabled) {
-      window.dispatchEvent(
-        new CustomEvent("compareRangeSelected", {
-          detail: {
-            startDate: compareDateRange.startDate,
-            endDate: compareDateRange.endDate,
-          },
-        })
-      );
-    }
-  };
-
-  return (
-    <nav className="relative flex justify-between items-center bg-gray-900 text-white px-6 py-3 shadow-lg">
-      <h1 className="text-lg font-semibold">Category Analysis</h1>
-
-      <div className="flex items-center gap-3">
-        <button className="bg-yellow-400 text-black font-semibold px-3 py-1 rounded-lg">
-          Blinkit
-        </button>
-
-        {/* Category Dropdown */}
-        <select
-          className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1 text-sm"
-          value={selectedCategory}
-          onChange={(e) => setSelectedCategory(e.target.value)}
-        >
-          <option value="">All Categories</option>
-          {categories.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-
-        {/* Main Date Picker */}
-        <div className="relative">
-          <input
-            type="text"
-            readOnly
-            value={formattedRange}
-            onClick={() => setShowCalendar(!showCalendar)}
-            className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1 text-sm text-gray-300 cursor-pointer"
-          />
-          {showCalendar && (
-            <div className="absolute right-0 mt-2 z-50 bg-gray-900 border border-gray-700 rounded-lg shadow-lg">
-              <DateRange
-                editableDateInputs
-                moveRangeOnFirstSelection={false}
-                ranges={[
-                  {
-                    startDate: dateRange.startDate,
-                    endDate: dateRange.endDate,
-                    key: "selection",
-                  },
-                ]}
-                onChange={(item) =>
-                  setDateRange({
-                    startDate: item.selection.startDate || dateRange.startDate,
-                    endDate: item.selection.endDate || dateRange.endDate,
-                  })
+    // 🔹 Load categories
+    useEffect(() => {
+        const loadCategories = async () => {
+            try {
+                const response = await fetchCategories();
+                if (response && Array.isArray(response.data)) {
+                    setCategories(response.data);
+                } else {
+                    console.warn('Categories data is not an array', response);
+                    setCategories([]);
                 }
-                className="text-black"
-              />
-            </div>
-          )}
-        </div>
+            } catch (err) {
+                console.error('Failed to load categories', err);
+                setCategories([]);
+            }
+        };
+        loadCategories();
+    }, []);
 
-        {/* Compare To Toggle */}
-        <div className="flex items-center gap-2 relative">
-          <button
-            className={`px-3 py-1 rounded-lg text-sm font-semibold ${
-              compareEnabled ? "bg-blue-600" : "bg-gray-600"
-            }`}
-            onClick={() => {
-              setCompareEnabled(!compareEnabled);
-              setShowCompareCalendar(false);
-              if (!compareEnabled) {
-                // Enable compare mode
-                setShowCompareCalendar(true);
+    const formattedRange = `${format(
+        dateRange.startDate,
+        'dd/MM/yyyy'
+    )} - ${format(dateRange.endDate, 'dd/MM/yyyy')}`;
+
+    const handleCustomApply = () => {
+        const currentDays =
+            (dateRange.endDate.getTime() - dateRange.startDate.getTime()) /
+                (1000 * 60 * 60 * 24) +
+            1;
+        const customDays =
+            (customDateRange.endDate.getTime() -
+                customDateRange.startDate.getTime()) /
+                (1000 * 60 * 60 * 24) +
+            1;
+
+        if (currentDays !== customDays) {
+            setCompareError(
+                `Please select a range of ${currentDays} days (you selected ${customDays}).`
+            );
+            return;
+        }
+
+        setCompareError(null);
+        setShowCustomCalendar(false);
+
+        // Dispatch event when custom compare range is selected
+        window.dispatchEvent(
+            new CustomEvent('compareRangeSelected', {
+                detail: {
+                    startDate: customDateRange.startDate,
+                    endDate: customDateRange.endDate,
+                },
+            })
+        );
+    };
+
+    return (
+        <nav className="relative flex justify-between items-center bg-gray-900 text-white px-6 py-3 shadow-lg">
+            <h1 className="text-lg font-semibold">Category Analysis</h1>
+
+            <div className="flex items-center gap-3">
+                <button className="bg-yellow-400 text-black font-semibold px-3 py-1 rounded-lg">
+                    Blinkit
+                </button>
+
+              {/* Category Dropdown with Checkboxes */}
+<div className="relative">
+  <button
+    onClick={() => setShowCategories(!showCategories)}
+    className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1 text-sm flex items-center gap-2"
+  >
+    {selectedCategory.length > 0
+      ? selectedCategory.join(', ')
+      : 'All Categories'}
+    <span className="ml-1">&#9662;</span> {/* down arrow */}
+  </button>
+
+  {showCategories && (
+    <div className="absolute mt-1 w-48 bg-gray-800 border border-gray-700 rounded-lg shadow-lg p-2 z-50 max-h-64 overflow-y-auto">
+      {categories.map((c) => (
+        <label
+          key={c}
+          className="flex items-center gap-2 text-sm px-2 py-1 rounded cursor-pointer hover:bg-gray-700"
+        >
+          <input
+            type="checkbox"
+            value={c}
+            checked={selectedCategory.includes(c)}
+            onChange={(e) => {
+              const checked = e.target.checked;
+              if (checked) {
+                setSelectedCategory([...selectedCategory, c]);
               } else {
-                // Disable compare mode → clear comparison
-                window.dispatchEvent(new CustomEvent("compareRangeCleared"));
+                setSelectedCategory(
+                  selectedCategory.filter((cat: string) => cat !== c)
+                );
               }
             }}
-          >
-            {compareEnabled ? "Disable Compare" : "Enable Compare"}
-          </button>
+            className="cursor-pointer"
+          />
+          <span>{c}</span>
+        </label>
+      ))}
+    </div>
+  )}
+</div>
 
-          {compareEnabled && showCompareCalendar && (
-            <div className="absolute right-0 top-full mt-2 z-50 border-gray-700 rounded-lg shadow-lg p-2 bg-gray-900">
-              <DateRange
-                editableDateInputs
-                moveRangeOnFirstSelection={false}
-                ranges={[
-                  {
-                    startDate: compareDateRange.startDate,
-                    endDate: compareDateRange.endDate,
-                    key: "selection",
-                  },
-                ]}
-                onChange={(item) =>
-                  setCompareDateRange({
-                    startDate: item.selection.startDate || compareDateRange.startDate,
-                    endDate: item.selection.endDate || compareDateRange.endDate,
-                  })
-                }
-                className="text-black"
-              />
 
-              {compareError && (
-                <div className="text-red-500 text-sm mt-1">{compareError}</div>
-              )}
+                {/* Main Date Picker */}
+                <div className="relative">
+                    <input
+                        type="text"
+                        readOnly
+                        value={formattedRange}
+                        onClick={() => setShowCalendar(!showCalendar)}
+                        className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1 text-sm text-gray-300 cursor-pointer"
+                    />
+                    {showCalendar && (
+                        <div className="absolute right-0 mt-2 z-50 border border-gray-700 rounded-lg shadow-lg p-3 bg-gray-900 flex gap-3">
+                            {/* ✅ Left: Main Date Picker */}
+                            <div>
+                                <DateRange
+                                    editableDateInputs
+                                    moveRangeOnFirstSelection={false}
+                                    ranges={[
+                                        {
+                                            startDate: dateRange.startDate,
+                                            endDate: dateRange.endDate,
+                                            key: 'selection',
+                                        },
+                                    ]}
+                                    onChange={(item) =>
+                                        setDateRange({
+                                            startDate:
+                                                item.selection.startDate ||
+                                                dateRange.startDate,
+                                            endDate:
+                                                item.selection.endDate ||
+                                                dateRange.endDate,
+                                        })
+                                    }
+                                    minDate={new Date('2025-09-01')}
+                                    maxDate={new Date('2025-10-05')}
+                                    className="text-black"
+                                />
 
-              <div className="flex justify-end mt-2">
-                <button
-                  className="bg-green-500 hover:bg-green-600 px-3 py-1 rounded text-sm"
-                  onClick={handleCompareApply}
-                >
-                  Apply
-                </button>
-              </div>
+                                {/* ✅ Custom Range toggle inside main calendar */}
+                                <div className="mt-2 flex items-center justify-between border-t pt-2">
+                                    <label className="flex items-center gap-2 text-sm text-gray-300">
+                                        <input
+                                            type="checkbox"
+                                            checked={customEnabled}
+                                            onChange={() => {
+                                                setCustomEnabled(
+                                                    !customEnabled
+                                                );
+                                                setShowCustomCalendar(
+                                                    !customEnabled
+                                                );
+                                                if (!customEnabled) {
+                                                    setCustomDateRange({
+                                                        startDate:
+                                                            dateRange.startDate,
+                                                        endDate:
+                                                            dateRange.endDate,
+                                                    });
+                                                } else {
+                                                    window.dispatchEvent(
+                                                        new CustomEvent(
+                                                            'compareRangeCleared'
+                                                        )
+                                                    );
+                                                }
+                                            }}
+                                            className="cursor-pointer"
+                                        />
+                                        <span>Custom Range</span>
+                                    </label>
+
+                                    <button
+                                        className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1 rounded"
+                                        onClick={() => setShowCalendar(false)}
+                                    >
+                                        Apply Date
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* ✅ Right: Custom Compare Calendar (side-by-side) */}
+                            {customEnabled && showCustomCalendar && (
+                                <div className="border-l border-gray-700 pl-3">
+                                    <DateRange
+                                        editableDateInputs
+                                        moveRangeOnFirstSelection={false}
+                                        ranges={[
+                                            {
+                                                startDate:
+                                                    customDateRange.startDate,
+                                                endDate:
+                                                    customDateRange.endDate,
+                                                key: 'selection',
+                                            },
+                                        ]}
+                                        onChange={(item) =>
+                                            setCustomDateRange({
+                                                startDate:
+                                                    item.selection.startDate ||
+                                                    customDateRange.startDate,
+                                                endDate:
+                                                    item.selection.endDate ||
+                                                    customDateRange.endDate,
+                                            })
+                                        }
+                                        minDate={new Date('2025-09-01')}
+                                        maxDate={new Date('2025-10-05')}
+                                        className="text-black"
+                                    />
+
+                                    {compareError && (
+                                        <div className="text-red-500 text-sm mt-1">
+                                            {compareError}
+                                        </div>
+                                    )}
+
+                                    <div className="flex justify-end mt-2">
+                                        <button
+                                            className="bg-green-500 hover:bg-green-600 px-3 py-1 rounded text-sm"
+                                            onClick={handleCustomApply}
+                                        >
+                                            Apply Custom
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                {/* Brand */}
+                <div className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1 text-sm text-gray-300">
+                    {brand}
+                </div>
             </div>
-          )}
-        </div>
-
-        {/* Brand */}
-        <div className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1 text-sm text-gray-300">
-          {brand}
-        </div>
-      </div>
-    </nav>
-  );
+        </nav>
+    );
 }

@@ -118,9 +118,8 @@ export const validateDateRangeMatch = (
   return { valid: true, expectedDays, actualDays };
 };
 
-/**
- * 🔹 Metric field mapping for dynamic queries
- */
+
+
 const METRIC_FIELD_MAP: Record<string, string> = {
   totalRevenue: "total_final_revenue",
   totalOrders: "total_orders",
@@ -136,11 +135,6 @@ const METRIC_FIELD_MAP: Record<string, string> = {
 
 /**
  * 🔹 Get daily metrics for all products (for line chart)
- * @param startDate - Start date for the range
- * @param endDate - End date for the range
- * @param metric1 - First metric name (e.g., 'totalRevenue')
- * @param metric2 - Second metric name (e.g., 'totalOrders')
- * @returns Array of daily aggregated data
  */
 export const getDailyMetrics = async (
   startDate: Date,
@@ -148,27 +142,25 @@ export const getDailyMetrics = async (
   metric1: string = "totalRevenue",
   metric2: string = "totalOrders"
 ): Promise<DailyMetricData[]> => {
-  // Validate metric names
   const metric1Field = METRIC_FIELD_MAP[metric1];
   const metric2Field = METRIC_FIELD_MAP[metric2];
 
   if (!metric1Field || !metric2Field) {
     throw new Error(
-      `Invalid metric names. Available metrics: ${Object.keys(
-        METRIC_FIELD_MAP
-      ).join(", ")}`
+      `Invalid metric names. Available metrics: ${Object.keys(METRIC_FIELD_MAP).join(", ")}`
     );
   }
 
-  // Query to get daily aggregated metrics
-  const result = await prisma.$queryRawUnsafe<any[]>(
+  const result = await prisma.$queryRawUnsafe<
+    { date: string; metric1value: string | number; metric2value: string | number }[]
+  >(
     `
     SELECT
       DATE(f."date") AS "date",
-      SUM(f."${metric1Field}") AS "metric1Value",
-      SUM(f."${metric2Field}") AS "metric2Value"
+      SUM(f."${metric1Field}") AS "metric1value",
+      SUM(f."${metric2Field}") AS "metric2value"
     FROM "FactTable" f
-    WHERE DATE(f."date") >= DATE($1) AND DATE(f."date") <= DATE($2)
+    WHERE DATE(f."date") BETWEEN DATE($1) AND DATE($2)
     GROUP BY DATE(f."date")
     ORDER BY DATE(f."date") ASC;
   `,
@@ -176,10 +168,9 @@ export const getDailyMetrics = async (
     endDate
   );
 
-  // Format the response
   return result.map((row) => ({
-    date: row.date.toISOString().split("T")[0], // Format as YYYY-MM-DD
-    metric1Value: Number(row.metric1Value) || 0,
-    metric2Value: Number(row.metric2Value) || 0,
+    date: row.date, // already YYYY-MM-DD
+    metric1Value: Number(row.metric1value) || 0,
+    metric2Value: Number(row.metric2value) || 0,
   }));
 };

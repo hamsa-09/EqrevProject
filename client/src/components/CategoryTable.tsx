@@ -65,7 +65,7 @@ const ValueWithDiff = ({ value, diff }: { value: any; diff?: number }) => {
                         <path d="m22 17-8.5-8.5-5 5L2 7" />
                     </svg>
                 )}
-                <span>{isPositive ? displayDiff : `-${displayDiff}`}</span>
+                <span>{isPositive ? `${displayDiff}`: `-${displayDiff}`}</span>
             </span>
         </div>
     );

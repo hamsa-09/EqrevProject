@@ -392,6 +392,7 @@ const pageOffset = offset ? parseInt(offset as string, 10) : 0;
 };
 
 
+
 /**
  * 🔹 Get daily metrics for line chart
  * @route POST /api/lineChartMetrics
@@ -403,12 +404,11 @@ const pageOffset = offset ? parseInt(offset as string, 10) : 0;
 export const getLineChartMetrics = async (req: Request, res: Response) => {
   try {
     const { start, end, metric1, metric2 } = req.body;
-    console.log(metric1, metric2)
-    // Default date range: 15 days before current date to current date
-    // End date is today
+
+    // 🗓 Default: 15 days before today → today
     const today = new Date();
     today.setHours(23, 59, 59, 999);
-    // Start date is 15 days before today
+
     const fifteenDaysAgo = new Date();
     fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
     fifteenDaysAgo.setHours(0, 0, 0, 0);
@@ -416,7 +416,7 @@ export const getLineChartMetrics = async (req: Request, res: Response) => {
     const startDate = start ? new Date(start) : fifteenDaysAgo;
     const endDate = end ? new Date(end) : today;
 
-    // Ensure time is set to start/end of day for proper comparison
+    // Ensure time boundaries
     if (start) startDate.setHours(0, 0, 0, 0);
     if (end) endDate.setHours(23, 59, 59, 999);
 
@@ -424,36 +424,39 @@ export const getLineChartMetrics = async (req: Request, res: Response) => {
     const firstMetric = metric1 || "totalRevenue";
     const secondMetric = metric2 || "totalOrders";
 
-    // Validate date range
+    // 🔎 Validation
     if (startDate > endDate) {
       return res.status(400).json({
         success: false,
         message: "Start date cannot be after end date.",
       });
     }
-    // Fetch daily metrics
-    const data = await getDailyMetrics(
-      startDate,
-      endDate,
-      firstMetric,
-      secondMetric
-    );
+
+    // 📊 Fetch daily metrics
+    const rawData = await getDailyMetrics(startDate, endDate, firstMetric, secondMetric);
+
+    // 🧩 Transform response → use dynamic keys like totalRevenue / totalOrders
+    const formattedData = rawData.map((item: any) => ({
+      date: item.date,
+      [firstMetric]: item.metric1Value,
+      [secondMetric]: item.metric2Value,
+    }));
+
+    // ✅ Final Response (convert to strings for JSON compatibility)
     const response: LineChartResponse = {
       success: true,
       message: "Daily metrics fetched successfully",
       dateRange: {
-        startDate,
-        endDate,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
       },
-      metrics: {
-        metric1: firstMetric,
-        metric2: secondMetric,
-      },
-      data,
+      metrics: { metric1: firstMetric, metric2: secondMetric },
+      data: formattedData,
     };
+
     return res.status(200).json(response);
   } catch (error: any) {
-    console.error("Error in getLineChartMetrics:", error);
+    console.error("❌ Error in getLineChartMetrics:", error);
     return res.status(500).json({
       success: false,
       message:
@@ -463,3 +466,4 @@ export const getLineChartMetrics = async (req: Request, res: Response) => {
     });
   }
 };
+
