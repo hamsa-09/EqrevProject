@@ -10,7 +10,7 @@ interface NavbarProps {
     setDateRange: React.Dispatch<
         React.SetStateAction<{ startDate: Date; endDate: Date }>
     >;
-     selectedCategory: string[];
+    selectedCategory: string[];
     setSelectedCategory: React.Dispatch<React.SetStateAction<string[]>>;
 }
 
@@ -30,10 +30,9 @@ export default function Navbar({
         startDate: dateRange.startDate,
         endDate: dateRange.endDate,
     });
-    const [tempRange, setTempRange] = useState(dateRange);
     const [compareError, setCompareError] = useState<string | null>(null);
 
-    // 🔹 Load categories
+    // Load categories
     useEffect(() => {
         const loadCategories = async () => {
             try {
@@ -98,48 +97,53 @@ export default function Navbar({
                     Blinkit
                 </button>
 
-              {/* Category Dropdown with Checkboxes */}
-<div className="relative">
-  <button
-    onClick={() => setShowCategories(!showCategories)}
-    className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1 text-sm flex items-center gap-2"
-  >
-    {selectedCategory.length > 0
-      ? selectedCategory.join(', ')
-      : 'All Categories'}
-    <span className="ml-1">&#9662;</span> {/* down arrow */}
-  </button>
+                {/* Category Dropdown with Checkboxes */}
+                <div className="relative">
+                    <button
+                        onClick={() => setShowCategories(!showCategories)}
+                        className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1 text-sm flex items-center gap-2"
+                    >
+                        {selectedCategory.length > 0
+                            ? selectedCategory.join(', ')
+                            : 'All Categories'}
+                        <span className="ml-1">&#9662;</span> {/* down arrow */}
+                    </button>
 
-  {showCategories && (
-    <div className="absolute mt-1 w-48 bg-gray-800 border border-gray-700 rounded-lg shadow-lg p-2 z-50 max-h-64 overflow-y-auto">
-      {categories.map((c) => (
-        <label
-          key={c}
-          className="flex items-center gap-2 text-sm px-2 py-1 rounded cursor-pointer hover:bg-gray-700"
-        >
-          <input
-            type="checkbox"
-            value={c}
-            checked={selectedCategory.includes(c)}
-            onChange={(e) => {
-              const checked = e.target.checked;
-              if (checked) {
-                setSelectedCategory([...selectedCategory, c]);
-              } else {
-                setSelectedCategory(
-                  selectedCategory.filter((cat: string) => cat !== c)
-                );
-              }
-            }}
-            className="cursor-pointer"
-          />
-          <span>{c}</span>
-        </label>
-      ))}
-    </div>
-  )}
-</div>
-
+                    {showCategories && (
+                        <div className="absolute mt-1 w-48 bg-gray-800 border border-gray-700 rounded-lg shadow-lg p-2 z-50 max-h-64 overflow-y-auto">
+                            {categories.map((c) => (
+                                <label
+                                    key={c}
+                                    className="flex items-center gap-2 text-sm px-2 py-1 rounded cursor-pointer hover:bg-gray-700"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        value={c}
+                                        checked={selectedCategory.includes(c)}
+                                        onChange={(e) => {
+                                            const checked = e.target.checked;
+                                            if (checked) {
+                                                setSelectedCategory([
+                                                    ...selectedCategory,
+                                                    c,
+                                                ]);
+                                            } else {
+                                                setSelectedCategory(
+                                                    selectedCategory.filter(
+                                                        (cat: string) =>
+                                                            cat !== c
+                                                    )
+                                                );
+                                            }
+                                        }}
+                                        className="cursor-pointer"
+                                    />
+                                    <span>{c}</span>
+                                </label>
+                            ))}
+                        </div>
+                    )}
+                </div>
 
                 {/* Main Date Picker */}
                 <div className="relative">
@@ -179,7 +183,7 @@ export default function Navbar({
                                     className="text-black"
                                 />
 
-                                {/* ✅ Custom Range toggle inside main calendar */}
+                                {/* Custom Range toggle inside main calendar */}
                                 <div className="mt-2 flex items-center justify-between border-t pt-2">
                                     <label className="flex items-center gap-2 text-sm text-gray-300">
                                         <input
@@ -221,7 +225,7 @@ export default function Navbar({
                                 </div>
                             </div>
 
-                            {/* ✅ Right: Custom Compare Calendar (side-by-side) */}
+                            {/*  Custom Compare Calendar */}
                             {customEnabled && showCustomCalendar && (
                                 <div className="border-l border-gray-700 pl-3">
                                     <DateRange

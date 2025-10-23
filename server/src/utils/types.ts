@@ -38,7 +38,7 @@ export interface LineChartResponse {
   success: boolean;
   message: string;
   dateRange: {
-    startDate: string; // use string for API JSON compatibility
+    startDate: string; 
     endDate: string;
   };
   metrics: {

@@ -9,7 +9,7 @@ const app=express()
 dotenv.config()
 // cors origin
 app.use(cors({
-  origin: "http://localhost:5173", // your frontend URL
+  origin: "http://localhost:5173",
   methods: ["GET", "POST", "PUT", "DELETE"]
 }));
 app.use(express.json())

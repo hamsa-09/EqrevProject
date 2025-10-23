@@ -5,7 +5,6 @@ const route=express.Router()
 route.post("/uploadCSV",uploadCSV)
 route.get("/categories", getAllCategories);
 route.post("/OverAlldashboard",dashboardMetric)
-
 route.post("/lineChartMetrics", getLineChartMetrics);
 
 export default route;

@@ -1,4 +1,3 @@
-// pages/Dashboard.tsx
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import Navbar from './components/NavBar';
@@ -26,7 +25,10 @@ export default function Dashboard() {
         endDate: today,
     });
 
-    const [cusDateRange, setCusDateRange] = useState<{ startDate: Date | null; endDate: Date | null }>({
+    const [cusDateRange, setCusDateRange] = useState<{
+        startDate: Date | null;
+        endDate: Date | null;
+    }>({
         startDate: null,
         endDate: null,
     });
@@ -52,7 +54,11 @@ export default function Dashboard() {
             let compareStart: Date | null = null;
             let compareEnd: Date | null = null;
 
-            if (compareEnabled && cusDateRange.startDate && cusDateRange.endDate) {
+            if (
+                compareEnabled &&
+                cusDateRange.startDate &&
+                cusDateRange.endDate
+            ) {
                 compareStart = cusDateRange.startDate;
                 compareEnd = cusDateRange.endDate;
             } else {
@@ -67,8 +73,12 @@ export default function Dashboard() {
             const body: any = {
                 start: dateRange.startDate.toISOString().split('T')[0],
                 end: dateRange.endDate.toISOString().split('T')[0],
-                customStart: compareEnabled ? compareStart.toISOString().split('T')[0] : null,
-                customEnd: compareEnabled ? compareEnd.toISOString().split('T')[0] : null,
+                customStart: compareEnabled
+                    ? compareStart.toISOString().split('T')[0]
+                    : null,
+                customEnd: compareEnabled
+                    ? compareEnd.toISOString().split('T')[0]
+                    : null,
                 sortBy,
                 order,
             };
@@ -78,7 +88,10 @@ export default function Dashboard() {
                 body.offset = offset;
             }
 
-            const res = await axios.post('http://localhost:3000/api/OverAlldashboard', body);
+            const res = await axios.post(
+                'http://localhost:3000/api/OverAlldashboard',
+                body
+            );
 
             if (res.data.success) {
                 const data = res.data.data;
@@ -86,7 +99,9 @@ export default function Dashboard() {
                 setTotal(res.data.total);
 
                 // Set summary row
-                const summaryRow = data.find((d: any) => d.category === 'Summary');
+                const summaryRow = data.find(
+                    (d: any) => d.category === 'Summary'
+                );
                 if (summaryRow) {
                     setSummary({
                         totalRevenue: summaryRow.totalRevenue,
@@ -107,62 +122,70 @@ export default function Dashboard() {
         fetchMetrics();
     }, [sortBy, order, offset, dateRange, cusDateRange, compareEnabled]);
 
-    // Filter metrics by category checkboxes & search
-useEffect(() => {
-  const doFilter = async () => {
-    if (search.trim() !== '' || selectedCategory.length > 0) {
-      try {
-        let allData: any[] = [];
-        let currentOffset = 0;
-        let hasMore = true;
+    // Filter metrics
+    useEffect(() => {
+        const doFilter = async () => {
+            if (search.trim() !== '' || selectedCategory.length > 0) {
+                try {
+                    let allData: any[] = [];
+                    let currentOffset = 0;
+                    let hasMore = true;
 
-        //Keep fetching pages until all are loaded
-        while (hasMore) {
-          const res = await axios.post('http://localhost:3000/api/OverAlldashboard', {
-            start: dateRange.startDate.toISOString().split('T')[0],
-            end: dateRange.endDate.toISOString().split('T')[0],
-            sortBy,
-            order,
-            limit,
-            offset: currentOffset,
-          });
+                    //Keep fetching pages until all are loaded
+                    while (hasMore) {
+                        const res = await axios.post(
+                            'http://localhost:3000/api/OverAlldashboard',
+                            {
+                                start: dateRange.startDate
+                                    .toISOString()
+                                    .split('T')[0],
+                                end: dateRange.endDate
+                                    .toISOString()
+                                    .split('T')[0],
+                                sortBy,
+                                order,
+                                limit,
+                                offset: currentOffset,
+                            }
+                        );
 
-          if (!res.data.success || !res.data.data.length) {
-            hasMore = false;
-            break;
-          }
+                        if (!res.data.success || !res.data.data.length) {
+                            hasMore = false;
+                            break;
+                        }
 
-          allData = [...allData, ...res.data.data];
-          currentOffset += limit;
-          // Stop when we've fetched all items
-          if (allData.length >= res.data.total) {
-            hasMore = false;
-          }
-        }
-        //  category and search filters locally
-        let filtered = allData;
-        if (selectedCategory.length > 0) {
-          filtered = filtered.filter((m: any) =>
-            selectedCategory.includes(m.category)
-          );
-        }
-        if (search.trim() !== '') {
-          filtered = filtered.filter((m: any) =>
-            m.category.toLowerCase().includes(search.toLowerCase())
-          );
-        }
-        setFilteredMetrics(filtered);
-      } catch (error) {
-        console.error('Error filtering metrics:', error);
-      }
-    } else {
-      // Default to current page when no search/filter
-      setFilteredMetrics(metrics);
-    }
-  };
-  doFilter();
-}, [search, selectedCategory, metrics]);
-
+                        allData = [...allData, ...res.data.data];
+                        currentOffset += limit;
+                        // Stop when  fetched all items
+                        if (allData.length >= res.data.total) {
+                            hasMore = false;
+                        }
+                    }
+                    //  category and search filters
+                    let filtered = allData;
+                    if (selectedCategory.length > 0) {
+                        filtered = filtered.filter((m: any) =>
+                            selectedCategory.includes(m.category)
+                        );
+                    }
+                    if (search.trim() !== '') {
+                        filtered = filtered.filter((m: any) =>
+                            m.category
+                                .toLowerCase()
+                                .includes(search.toLowerCase())
+                        );
+                    }
+                    setFilteredMetrics(filtered);
+                } catch (error) {
+                    console.error('Error filtering metrics:', error);
+                }
+            } else {
+                // Default to current page when no search/filter
+                setFilteredMetrics(metrics);
+            }
+        };
+        doFilter();
+    }, [search, selectedCategory, metrics]);
 
     // Compare toggle listeners
     useEffect(() => {
@@ -182,7 +205,10 @@ useEffect(() => {
 
         return () => {
             window.removeEventListener('compareRangeSelected', handleCompare);
-            window.removeEventListener('compareRangeCleared', handleCompareClear);
+            window.removeEventListener(
+                'compareRangeCleared',
+                handleCompareClear
+            );
         };
     }, []);
 
@@ -255,14 +281,17 @@ useEffect(() => {
                     <div className="flex justify-end items-center gap-4 mt-5">
                         <button
                             disabled={offset === 0}
-                            onClick={() => setOffset(Math.max(offset - limit, 0))}
+                            onClick={() =>
+                                setOffset(Math.max(offset - limit, 0))
+                            }
                             className="px-3 py-1 border rounded disabled:opacity-50 hover:bg-gray-100 transition"
                         >
                             Prev
                         </button>
 
                         <span className="text-sm text-gray-600">
-                            Page {Math.floor(offset / limit) + 1} of {Math.ceil(total / limit)}
+                            Page {Math.floor(offset / limit) + 1} of{' '}
+                            {Math.ceil(total / limit)}
                         </span>
 
                         <button

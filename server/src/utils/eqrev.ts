@@ -3,7 +3,7 @@ import { DBCategoryMetric, DailyMetricData } from "./types";
 
 const prisma = new PrismaClient();
 
-// 🔹 Aggregate by category (optimized SQL)
+// Aggregate by category
 export const getCategoryMetrics = async (
   startDate: Date,
   endDate: Date
@@ -31,7 +31,7 @@ ORDER BY SUM(COALESCE(f."total_final_revenue",0)) DESC;
   );
 };
 
-// 🔹 Get total summary
+//Get total summary
 export const getSummaryMetrics = (data: DBCategoryMetric[]) => {
   const totalRevenue = data.reduce(
     (acc, d) => acc + (Number(d.totalRevenue) || 0),
@@ -70,7 +70,7 @@ export const getSummaryMetrics = (data: DBCategoryMetric[]) => {
 };
 
 /**
- * 🔹 Calculate previous period (same duration before current)
+ * Calculate previous period for same duration before current
  */
 export const getPreviousPeriod = (startDate: Date, endDate: Date) => {
   const diffDays = getDateDiffInDays(startDate, endDate);
@@ -82,7 +82,7 @@ export const getPreviousPeriod = (startDate: Date, endDate: Date) => {
 };
 
 /**
- * 🆕 Helper: Get inclusive difference between two dates in days
+ *  Get difference between two dates in days
  */
 export const getDateDiffInDays = (startDate: Date, endDate: Date): number => {
   const msDiff = endDate.getTime() - startDate.getTime();
@@ -90,7 +90,7 @@ export const getDateDiffInDays = (startDate: Date, endDate: Date): number => {
 };
 
 /**
- * 🆕 Helper: Validate that two ranges are equal in duration
+ * Validate that two ranges are equal in duration
  */
 export const validateDateRangeMatch = (
   currentStart: Date,
@@ -119,7 +119,6 @@ export const validateDateRangeMatch = (
 };
 
 
-
 const METRIC_FIELD_MAP: Record<string, string> = {
   totalRevenue: "total_final_revenue",
   totalOrders: "total_orders",
@@ -134,7 +133,7 @@ const METRIC_FIELD_MAP: Record<string, string> = {
 };
 
 /**
- * 🔹 Get daily metrics for all products (for line chart)
+ * Get daily metrics for all products for chart
  */
 export const getDailyMetrics = async (
   startDate: Date,
@@ -169,7 +168,7 @@ export const getDailyMetrics = async (
   );
 
   return result.map((row) => ({
-    date: row.date, // already YYYY-MM-DD
+    date: row.date,
     metric1Value: Number(row.metric1value) || 0,
     metric2Value: Number(row.metric2value) || 0,
   }));

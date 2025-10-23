@@ -5,15 +5,13 @@ interface Props {
     order: string;
 }
 
-// ✅ Helper component for displaying value with diff indicator and label
+// displaying value with difference indicator and label
 const ValueWithDiff = ({ value, diff }: { value: any; diff?: number }) => {
     if (diff === undefined || diff === 0) {
         return <div className="flex justify-end">{value}</div>;
     }
-
     const isPositive = diff > 0;
-
-    // ✅ Round off diff (no decimals, no ".00")
+    // Round off difference
     const absDiff = Math.abs(diff);
     let displayDiff = '';
     if (absDiff >= 1000) {
@@ -81,11 +79,11 @@ export default function CategoryTable({ data, onSort, sortBy, order }: Props) {
         { key: 'aov', label: 'AOV' },
     ];
 
-    // ✅ Round and format values cleanly
+    // Round and format values
     const formatValue = (key: string, value: number | undefined) => {
         if (value === undefined || value === null || isNaN(value)) return '-';
 
-        const rounded = Math.round(value); // 💥 ensure all decimals are removed
+        const rounded = Math.round(value); 
 
         switch (key) {
             case 'totalRevenue':

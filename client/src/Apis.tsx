@@ -5,9 +5,9 @@ const api = axios.create({
   baseURL: BASE_URL,
 });
 
-// ✅ Fetch all categories (for dropdown)
+// Fetch all categories
 export const fetchCategories = async () => {
-  const res = await api.get("/categories"); // adjust route if your backend differs
+  const res = await api.get("/categories");
   return res.data;
 };
 
@@ -32,9 +32,8 @@ export const fetchDashboardMetrics = async ({
   return res.data;
 };
 
-// ---------------------------
-// 3️⃣ Fetch Sorted Dashboard Metrics
-// ---------------------------
+//  Fetch Sorted Dashboard Metrics
+
 export const fetchDashboardSorted = async ({
   start,
   end,

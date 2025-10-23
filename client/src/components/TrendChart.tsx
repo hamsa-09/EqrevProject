@@ -1,15 +1,5 @@
-// components/TrendChart.tsx
 import { useState, useEffect } from "react";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-  ResponsiveContainer,
-  Legend,
-} from "recharts";
+import { LineChart,  Line,  XAxis,  YAxis,  Tooltip,  CartesianGrid,  ResponsiveContainer,  Legend,} from "recharts";
 import { fetchLineChartMetrics } from "../Apis";
 import { format } from "date-fns";
 
@@ -48,10 +38,7 @@ export default function TrendChart({ dateRange }: TrendChartProps) {
       console.log("API Response:", res);
 
       if (res.success && res.data) {
-        // Assume backend returns data like:
-        // [{ date: "2025-10-20", totalRevenue: 1200, totalOrders: 50 }, ...]
         setChartData(res.data);
-
         // Set labels for the selected metrics
         setMetricLabels({
           metric1: availableMetrics.find((m) => m.key === selectedMetrics[0])?.label || selectedMetrics[0],
@@ -66,10 +53,10 @@ export default function TrendChart({ dateRange }: TrendChartProps) {
   const handleMetricToggle = (metricKey: string) => {
     setSelectedMetrics((prev) => {
       if (prev.includes(metricKey)) {
-        if (prev.length === 1) return prev; // always keep at least 1 metric
+        if (prev.length === 1) return prev;
         return prev.filter((m) => m !== metricKey);
       } else {
-        if (prev.length >= 2) return prev; // max 2 metrics
+        if (prev.length >= 2) return prev; 
         return [...prev, metricKey];
       }
     });
