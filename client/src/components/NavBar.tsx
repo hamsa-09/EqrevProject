@@ -30,6 +30,17 @@ export default function Navbar({
         startDate: dateRange.startDate,
         endDate: dateRange.endDate,
     });
+
+    // 🟢 New: temp storage for pending custom range
+    const [pendingCustomRange, setPendingCustomRange] = useState<{
+        startDate: Date;
+        endDate: Date;
+    } | null>(null);
+
+    const [tempDateRange, setTempDateRange] = useState({
+        startDate: dateRange.startDate,
+        endDate: dateRange.endDate,
+    });
     const [compareError, setCompareError] = useState<string | null>(null);
 
     // Load categories
@@ -56,6 +67,7 @@ export default function Navbar({
         'dd/MM/yyyy'
     )} - ${format(dateRange.endDate, 'dd/MM/yyyy')}`;
 
+    // 🟡 Modified: Now only stores pending custom range — no dispatch here
     const handleCustomApply = () => {
         const currentDays =
             (dateRange.endDate.getTime() - dateRange.startDate.getTime()) /
@@ -75,17 +87,34 @@ export default function Navbar({
         }
 
         setCompareError(null);
+        setPendingCustomRange({
+            startDate: customDateRange.startDate,
+            endDate: customDateRange.endDate,
+        });
         setShowCustomCalendar(false);
+    };
 
-        // Dispatch event when custom compare range is selected
-        window.dispatchEvent(
-            new CustomEvent('compareRangeSelected', {
-                detail: {
-                    startDate: customDateRange.startDate,
-                    endDate: customDateRange.endDate,
-                },
-            })
-        );
+    // 🟢 Modified: Apply Date now triggers both main + custom updates together
+    const handleApplyMainDate = () => {
+        setDateRange({
+            startDate: tempDateRange.startDate,
+            endDate: tempDateRange.endDate,
+        });
+
+        if (customEnabled && pendingCustomRange) {
+            window.dispatchEvent(
+                new CustomEvent('compareRangeSelected', {
+                    detail: {
+                        startDate: pendingCustomRange.startDate,
+                        endDate: pendingCustomRange.endDate,
+                    },
+                })
+            );
+        } else {
+            window.dispatchEvent(new CustomEvent('compareRangeCleared'));
+        }
+
+        setShowCalendar(false);
     };
 
     return (
@@ -106,7 +135,7 @@ export default function Navbar({
                         {selectedCategory.length > 0
                             ? selectedCategory.join(', ')
                             : 'All Categories'}
-                        <span className="ml-1">&#9662;</span> {/* down arrow */}
+                        <span className="ml-1">&#9662;</span>
                     </button>
 
                     {showCategories && (
@@ -151,83 +180,20 @@ export default function Navbar({
                         type="text"
                         readOnly
                         value={formattedRange}
-                        onClick={() => setShowCalendar(!showCalendar)}
+                        onClick={() => {
+                            setTempDateRange({
+                                startDate: dateRange.startDate,
+                                endDate: dateRange.endDate,
+                            });
+                            setShowCalendar(!showCalendar);
+                        }}
                         className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1 text-sm text-gray-300 cursor-pointer"
                     />
                     {showCalendar && (
                         <div className="absolute right-0 mt-2 z-50 border border-gray-700 rounded-lg shadow-lg p-3 bg-gray-900 flex gap-3">
-                            {/* ✅ Left: Main Date Picker */}
-                            <div>
-                                <DateRange
-                                    editableDateInputs
-                                    moveRangeOnFirstSelection={false}
-                                    ranges={[
-                                        {
-                                            startDate: dateRange.startDate,
-                                            endDate: dateRange.endDate,
-                                            key: 'selection',
-                                        },
-                                    ]}
-                                    onChange={(item) =>
-                                        setDateRange({
-                                            startDate:
-                                                item.selection.startDate ||
-                                                dateRange.startDate,
-                                            endDate:
-                                                item.selection.endDate ||
-                                                dateRange.endDate,
-                                        })
-                                    }
-                                    minDate={new Date('2025-09-01')}
-                                    maxDate={new Date('2025-10-05')}
-                                    className="text-black"
-                                />
-
-                                {/* Custom Range toggle inside main calendar */}
-                                <div className="mt-2 flex items-center justify-between border-t pt-2">
-                                    <label className="flex items-center gap-2 text-sm text-gray-300">
-                                        <input
-                                            type="checkbox"
-                                            checked={customEnabled}
-                                            onChange={() => {
-                                                setCustomEnabled(
-                                                    !customEnabled
-                                                );
-                                                setShowCustomCalendar(
-                                                    !customEnabled
-                                                );
-                                                if (!customEnabled) {
-                                                    setCustomDateRange({
-                                                        startDate:
-                                                            dateRange.startDate,
-                                                        endDate:
-                                                            dateRange.endDate,
-                                                    });
-                                                } else {
-                                                    window.dispatchEvent(
-                                                        new CustomEvent(
-                                                            'compareRangeCleared'
-                                                        )
-                                                    );
-                                                }
-                                            }}
-                                            className="cursor-pointer"
-                                        />
-                                        <span>Custom Range</span>
-                                    </label>
-
-                                    <button
-                                        className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1 rounded"
-                                        onClick={() => setShowCalendar(false)}
-                                    >
-                                        Apply Date
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/*  Custom Compare Calendar */}
+                            {/* 🟢 Custom Compare Calendar */}
                             {customEnabled && showCustomCalendar && (
-                                <div className="border-l border-gray-700 pl-3">
+                                <div className="border-r border-gray-700 pr-3">
                                     <DateRange
                                         editableDateInputs
                                         moveRangeOnFirstSelection={false}
@@ -271,6 +237,74 @@ export default function Navbar({
                                     </div>
                                 </div>
                             )}
+
+                            {/* 🟣 Main Date Picker */}
+                            <div>
+                                <DateRange
+                                    editableDateInputs
+                                    moveRangeOnFirstSelection={false}
+                                    ranges={[
+                                        {
+                                            startDate: tempDateRange.startDate,
+                                            endDate: tempDateRange.endDate,
+                                            key: 'selection',
+                                        },
+                                    ]}
+                                    onChange={(item) =>
+                                        setTempDateRange({
+                                            startDate:
+                                                item.selection.startDate ||
+                                                tempDateRange.startDate,
+                                            endDate:
+                                                item.selection.endDate ||
+                                                tempDateRange.endDate,
+                                        })
+                                    }
+                                    minDate={new Date('2025-09-01')}
+                                    maxDate={new Date('2025-10-05')}
+                                    className="text-black"
+                                />
+
+                                <div className="mt-2 flex items-center justify-between border-t pt-2">
+                                    <label className="flex items-center gap-2 text-sm text-gray-300">
+                                        <input
+                                            type="checkbox"
+                                            checked={customEnabled}
+                                            onChange={() => {
+                                                setCustomEnabled(
+                                                    !customEnabled
+                                                );
+                                                setShowCustomCalendar(
+                                                    !customEnabled
+                                                );
+                                                if (!customEnabled) {
+                                                    setCustomDateRange({
+                                                        startDate:
+                                                            dateRange.startDate,
+                                                        endDate:
+                                                            dateRange.endDate,
+                                                    });
+                                                } else {
+                                                    window.dispatchEvent(
+                                                        new CustomEvent(
+                                                            'compareRangeCleared'
+                                                        )
+                                                    );
+                                                }
+                                            }}
+                                            className="cursor-pointer"
+                                        />
+                                        <span>Custom Range</span>
+                                    </label>
+
+                                    <button
+                                        className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1 rounded"
+                                        onClick={handleApplyMainDate}
+                                    >
+                                        Apply Date
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>
