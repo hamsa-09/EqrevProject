@@ -15,7 +15,7 @@ app.use(cors({
 app.use(express.json())
 app.use("/api",route)
 
-const port:string|undefined=process.env.PORT|3000;
+const port:string|undefined=process.env.PORT||3000;
 //listening to port
 app.listen(port,()=>
 {
