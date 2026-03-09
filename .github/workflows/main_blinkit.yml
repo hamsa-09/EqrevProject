@@ -24,7 +24,7 @@ jobs:
           node-version: '22.x'
 
       - name: npm install, build, and test
-        working-directory: EqrevProject/backend
+        working-directory: server
         run: |
           npm install
           npm run build --if-present
@@ -34,7 +34,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: EqrevProject/backend
+          path: server
 
   deploy:
     runs-on: ubuntu-latest
@@ -52,9 +52,10 @@ jobs:
         with:
           app-name: 'blinkit'
           slot-name: 'Production'
-          package: EqrevProject/backend
+          package: server
 
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_2FCA1C67D6A2425087FE78D67CA4784C }}
+
 
 
 
