@@ -52,7 +52,8 @@ jobs:
         with:
           app-name: 'blinkit'
           slot-name: 'Production'
-          package: .
+          package: backend
 
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_2FCA1C67D6A2425087FE78D67CA4784C }}
+
 
