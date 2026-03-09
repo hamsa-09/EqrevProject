@@ -1,7 +1,7 @@
 # Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
 # More GitHub Actions for Azure: https://github.com/Azure/actions
 
-name: Build and deploy Node.js app to Azure Web App - blinkit
+name: Build and deploy Node.js app to Azure Web App - blinkIt-app
 
 on:
   push:
@@ -50,11 +50,12 @@ jobs:
         uses: azure/webapps-deploy@v3
         id: deploy-to-webapp
         with:
-          app-name: 'blinkit'
+          app-name: 'blinkIt-app'
           slot-name: 'Production'
           package: .
 
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_2FCA1C67D6A2425087FE78D67CA4784C }}
+
 
 
 
