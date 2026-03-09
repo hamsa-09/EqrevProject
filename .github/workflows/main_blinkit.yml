@@ -24,7 +24,7 @@ jobs:
           node-version: '22.x'
 
       - name: npm install, build, and test
-        working-directory: EqrevProject
+        working-directory: backend
         run: |
           npm install
           npm run build --if-present
@@ -34,7 +34,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: EqrevProject
+          path: backend
 
   deploy:
     runs-on: ubuntu-latest
@@ -55,3 +55,4 @@ jobs:
           package: .
 
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_2FCA1C67D6A2425087FE78D67CA4784C }}
+
