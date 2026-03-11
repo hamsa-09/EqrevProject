@@ -13,20 +13,17 @@ app.use(cors({
   methods: ["GET", "POST", "PUT", "DELETE"]
 }));
 app.use(express.json())
-app.use(express.static(path.join(__dirname, "../client/build")));
 
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "../client/build/index.html"));
-});
 app.use("/api",route)
 
-app.use(express.static(path.join(__dirname, 'client/build')));
+app.use(express.static(path.join(__dirname, "../client/dist")));
 
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "../client/dist/index.html"));
 });
 
-const port:string|undefined=process.env.PORT||3000;
+const port: string | number = process.env.PORT || 3000;
+
 //listening to port
 app.listen(port,()=>
 {
