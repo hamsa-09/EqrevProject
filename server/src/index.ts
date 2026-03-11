@@ -2,7 +2,11 @@ import express from "express"
 import dotenv from "dotenv"
 import route from "./routes/eqrev"
 import cors from "cors"
+<<<<<<< HEAD
 import path from 'path'
+=======
+const path = require('path');
+>>>>>>> 2a0775cac7ed5327d29dc1ed61a2dbe44873e3b2
 
 //express setup
 const app=express()
@@ -20,7 +24,13 @@ app.get("*", (req, res) => {
 });
 app.use("/api",route)
 
-const port:string|undefined=process.env.PORT;
+app.use(express.static(path.join(__dirname, 'client/build')));
+
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
+});
+
+const port:string|undefined=process.env.PORT||3000;
 //listening to port
 app.listen(port,()=>
 {
