@@ -2,11 +2,7 @@ import express from "express"
 import dotenv from "dotenv"
 import route from "./routes/eqrev"
 import cors from "cors"
-<<<<<<< HEAD
 import path from 'path'
-=======
-const path = require('path');
->>>>>>> 2a0775cac7ed5327d29dc1ed61a2dbe44873e3b2
 
 //express setup
 const app=express()
